@@ -65,7 +65,6 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -98,15 +97,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 # ---------------------------------------------------------------------------
 # Database
 # ---------------------------------------------------------------------------
-# Priority: DATABASE_URL (Railway/Render) > USE_SQLITE (local trial) > discrete DB_* vars.
-DATABASE_URL = os.getenv("DATABASE_URL", "")
-if DATABASE_URL:
-    import dj_database_url
-
-    DATABASES = {
-        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=False)
-    }
-elif env_bool("USE_SQLITE", "False"):
+if env_bool("USE_SQLITE", "False"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -148,12 +139,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# WhiteNoise: compressed, cache-busted static files in production.
-STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
-}
 
 # ---------------------------------------------------------------------------
 # DRF
@@ -205,11 +190,6 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("FRONTEND_ORIGIN", "http://localhost:5173").split(",") if o.strip()]
 CORS_ALLOW_CREDENTIALS = True
 
-# CSRF trusted origins (Django admin / browser POSTs). Include backend + frontend https origins.
-CSRF_TRUSTED_ORIGINS = [
-    o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()
-] + [o for o in CORS_ALLOWED_ORIGINS if o.startswith("https://")]
-
 # ---------------------------------------------------------------------------
 # Cache (Redis when available, fallback to local memory)
 # ---------------------------------------------------------------------------
@@ -229,9 +209,7 @@ else:
 # Security (production hardening toggles)
 # ---------------------------------------------------------------------------
 if not DEBUG:
-    # Railway/Render terminate TLS at the proxy; trust the forwarded proto header.
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", "True")
+    SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
