@@ -1,0 +1,9 @@
+# Ensure Linux/Docker-bound files always use LF, regardless of OS.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+Dockerfile text eol=lf
+Procfile text eol=lf
+*.sh text eol=lf
