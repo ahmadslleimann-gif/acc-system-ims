@@ -1,0 +1,15 @@
+# Railway service config for the Django backend.
+#
+# IMPORTANT: In Railway, set this service's  Settings -> Root Directory = backend
+# Then add a PostgreSQL plugin (Railway injects DATABASE_URL automatically).
+#
+# The build uses the Dockerfile (deterministic). The container's CMD runs
+# migrate + bootstrap + gunicorn on start, so no startCommand is needed here.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
