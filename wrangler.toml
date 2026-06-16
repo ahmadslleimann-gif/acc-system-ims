@@ -9,6 +9,11 @@
 name = "acc-system-ims"
 compatibility_date = "2024-12-30"
 
+# Build the React app before deploying. --include=dev ensures vite/tsc are
+# installed even if the CI sets NODE_ENV=production.
+[build]
+command = "npm --prefix frontend install --include=dev && npm --prefix frontend run build"
+
 [assets]
 directory = "./frontend/dist"
 not_found_handling = "single-page-application"
