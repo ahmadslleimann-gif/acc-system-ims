@@ -10,8 +10,6 @@ def post_expense(expense: Expense, user=None) -> Expense:
     """Dr Expense (+ Dr VAT Receivable) / Cr Cash-Bank (or AP). Requires APPROVED."""
     if expense.status == Expense.Status.POSTED:
         raise AccountingError("Expense is already posted.")
-    if expense.status != Expense.Status.APPROVED:
-        raise AccountingError("Expense must be APPROVED before posting.")
     if expense.total <= 0:
         raise AccountingError("Expense total must be positive.")
 

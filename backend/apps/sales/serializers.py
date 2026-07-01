@@ -18,22 +18,35 @@ class SalesInvoiceItemSerializer(serializers.ModelSerializer):
 class SalesInvoiceSerializer(serializers.ModelSerializer):
     items = SalesInvoiceItemSerializer(many=True)
     customer_name = serializers.CharField(source="customer.name", read_only=True)
+    payment_status = serializers.CharField(read_only=True)
+    outstanding = serializers.DecimalField(max_digits=19, decimal_places=4, read_only=True)
+
+    # Optional custom invoice number. If left blank, the server auto-generates one.
+    doc_no = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = SalesInvoice
         fields = [
             "id", "doc_no", "customer", "customer_name", "date", "due_date",
+            "price_tier", "payment_type", "amount_paid", "payment_status", "outstanding",
             "status", "subtotal", "tax_amount", "total", "notes",
             "journal_entry", "items",
         ]
-        read_only_fields = ["doc_no", "status", "subtotal", "tax_amount", "total", "journal_entry"]
+        read_only_fields = ["status", "subtotal", "tax_amount", "total", "amount_paid", "journal_entry"]
+
+    def validate_doc_no(self, value):
+        value = (value or "").strip()
+        if value and SalesInvoice.objects.filter(doc_no=value).exists():
+            raise serializers.ValidationError("This invoice number is already used.")
+        return value
 
     def create(self, validated_data):
         from apps.accounting_engine.numbering import next_document_no
         from .services import _recompute_invoice_totals
         items = validated_data.pop("items")
+        doc_no = validated_data.pop("doc_no", "") or next_document_no(SalesInvoice, "INV")
         invoice = SalesInvoice.objects.create(
-            doc_no=next_document_no(SalesInvoice, "INV"),
+            doc_no=doc_no,
             created_by=self.context["request"].user,
             **validated_data,
         )
@@ -58,6 +71,10 @@ class SalesInvoiceSerializer(serializers.ModelSerializer):
 
 class CustomerPaymentSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.name", read_only=True)
+    deposit_account = serializers.PrimaryKeyRelatedField(
+        queryset=__import__("apps.accounts_coa.models", fromlist=["Account"]).Account.objects.all(),
+        required=False, allow_null=True,
+    )
 
     class Meta:
         model = CustomerPayment
@@ -69,6 +86,11 @@ class CustomerPaymentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from apps.accounting_engine.numbering import next_document_no
+        from apps.accounts_coa.models import SystemAccount
+        # Default the receiving account to the system CASH account (so sales staff
+        # don't need chart-of-accounts access just to record a receipt).
+        if not validated_data.get("deposit_account"):
+            validated_data["deposit_account"] = SystemAccount.objects.get(key="CASH").account
         return CustomerPayment.objects.create(
             doc_no=next_document_no(CustomerPayment, "RCPT"),
             created_by=self.context["request"].user,

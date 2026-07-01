@@ -12,9 +12,15 @@ from . import services
 class ExpenseCategoryViewSet(viewsets.ModelViewSet):
     queryset = ExpenseCategory.objects.select_related("expense_account").all()
     serializer_class = ExpenseCategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasModelPermission]
     filterset_fields = ["is_active"]
     search_fields = ["name", "name_ar"]
+    required_perms = {
+        "POST": ["expenses.add_expensecategory"],
+        "PUT": ["expenses.change_expensecategory"],
+        "PATCH": ["expenses.change_expensecategory"],
+        "DELETE": ["expenses.delete_expensecategory"],
+    }
 
 
 class ExpenseViewSet(viewsets.ModelViewSet):

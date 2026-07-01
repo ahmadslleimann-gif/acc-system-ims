@@ -5,6 +5,7 @@ import { useList, useCreate } from "../api/hooks";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import DataTable from "../components/DataTable";
+import SearchBar from "../components/SearchBar";
 
 interface Product {
   id: number;
@@ -13,9 +14,12 @@ interface Product {
   kind: string;
   unit: string;
   sale_price: string;
+  price_retail: string;
+  price_wholesale: string;
+  price_bulk: string;
   quantity_on_hand: string;
-  average_cost: string;
-  stock_value: string;
+  average_cost?: string;
+  stock_value?: string;
   is_low_stock: boolean;
   reorder_level: string;
 }
@@ -26,10 +30,16 @@ export default function Inventory() {
   const qc = useQueryClient();
   const canManage = isAdmin || can("inventory.add_product");
 
-  const { data, isLoading } = useList<Product>("inventory/products/", { page_size: 200 });
+  const [search, setSearch] = useState("");
+  const listParams: Record<string, unknown> = { page_size: 200 };
+  if (search) listParams.search = search;
+  const { data, isLoading } = useList<Product>("inventory/products/", listParams);
   const create = useCreate<Product>("inventory/products/");
 
-  const [form, setForm] = useState({ code: "", name_en: "", kind: "STOCK", unit: "pcs", sale_price: "0", reorder_level: "0" });
+  const [form, setForm] = useState({
+    code: "", name_en: "", kind: "STOCK", unit: "pcs", reorder_level: "0",
+    price_retail: "0", price_wholesale: "0", price_bulk: "0",
+  });
   const [showProduct, setShowProduct] = useState(false);
 
   // Stock movement panel
@@ -39,8 +49,8 @@ export default function Inventory() {
 
   async function addProduct(e: React.FormEvent) {
     e.preventDefault();
-    await create.mutateAsync({ ...form, sale_price: form.sale_price, reorder_level: form.reorder_level } as never);
-    setForm({ code: "", name_en: "", kind: "STOCK", unit: "pcs", sale_price: "0", reorder_level: "0" });
+    await create.mutateAsync({ ...form, sale_price: form.price_retail } as never);
+    setForm({ code: "", name_en: "", kind: "STOCK", unit: "pcs", reorder_level: "0", price_retail: "0", price_wholesale: "0", price_bulk: "0" });
     setShowProduct(false);
   }
 
@@ -91,16 +101,28 @@ export default function Inventory() {
       </div>
 
       {showProduct && (
-        <form onSubmit={addProduct} className="card p-4 grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
-          <input className="input" placeholder="Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} required />
-          <input className="input col-span-2" placeholder="Product name" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} required />
-          <select className="input" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-            <option value="STOCK">Stock item</option>
-            <option value="SERVICE">Service</option>
-          </select>
-          <input className="input" placeholder="Unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-          <input className="input" type="number" step="0.01" placeholder="Sale price" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} />
-          <button className="btn-primary" disabled={create.isPending}>{t("save")}</button>
+        <form onSubmit={addProduct} className="card p-4 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 items-end">
+            <input className="input col-span-2" placeholder="Product name" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} required />
+            <input className="input" placeholder="Unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-3 gap-3 items-end">
+            <div>
+              <label className="label">{t("priceRetail")} {!isAdmin && <span className="text-[10px] text-amber-600">({t("adminOnly")})</span>}</label>
+              <input className="input" type="number" step="0.01" disabled={!isAdmin} value={form.price_retail} onChange={(e) => setForm({ ...form, price_retail: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">{t("priceWholesale")}</label>
+              <input className="input" type="number" step="0.01" disabled={!isAdmin} value={form.price_wholesale} onChange={(e) => setForm({ ...form, price_wholesale: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">{t("priceBulk")}</label>
+              <input className="input" type="number" step="0.01" disabled={!isAdmin} value={form.price_bulk} onChange={(e) => setForm({ ...form, price_bulk: e.target.value })} />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <button className="btn-primary" disabled={create.isPending}>{t("save")}</button>
+          </div>
         </form>
       )}
 
@@ -130,27 +152,28 @@ export default function Inventory() {
         </div>
       )}
 
+      <SearchBar onSearch={setSearch} placeholder={`${t("search")} (code, name, barcode…)`} />
+
       <DataTable
         loading={isLoading}
         rows={products}
         columns={[
-          { key: "code", label: "Code", render: (p) => <span className="font-mono">{p.code}</span> },
           { key: "name_en", label: "Name" },
-          { key: "kind", label: "Type" },
           {
             key: "quantity_on_hand",
-            label: "On Hand",
-            render: (p) =>
-              p.kind === "SERVICE" ? "—" : (
-                <span className={p.is_low_stock ? "text-red-600 font-semibold" : ""}>
-                  {Number(p.quantity_on_hand).toLocaleString()} {p.unit}
-                  {p.is_low_stock && " ⚠"}
-                </span>
-              ),
+            label: t("onHand"),
+            render: (p) => (
+              <span className={p.is_low_stock ? "text-red-600 font-semibold" : ""}>
+                {Number(p.quantity_on_hand).toLocaleString()} {p.unit}
+                {p.is_low_stock && " ⚠"}
+              </span>
+            ),
           },
-          { key: "average_cost", label: "Avg Cost", render: (p) => (p.kind === "SERVICE" ? "—" : Number(p.average_cost).toLocaleString()) },
-          { key: "stock_value", label: "Value", render: (p) => (p.kind === "SERVICE" ? "—" : Number(p.stock_value).toLocaleString()) },
-          { key: "sale_price", label: "Sale Price", render: (p) => Number(p.sale_price).toLocaleString() },
+          { key: "average_cost", label: "Avg Cost", render: (p) => (p.average_cost == null ? "—" : Number(p.average_cost).toLocaleString()) },
+          { key: "stock_value", label: "Value", render: (p) => (p.stock_value == null ? "—" : Number(p.stock_value).toLocaleString()) },
+          { key: "price_retail", label: t("priceRetail"), render: (p) => Number(p.price_retail).toLocaleString() },
+          { key: "price_wholesale", label: t("priceWholesale"), render: (p) => Number(p.price_wholesale).toLocaleString() },
+          { key: "price_bulk", label: t("priceBulk"), render: (p) => Number(p.price_bulk).toLocaleString() },
         ]}
       />
     </div>

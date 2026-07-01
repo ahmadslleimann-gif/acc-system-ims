@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>نظام كانيجيا للدراجات النارية — دليل النظام</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand2:#115e59; --ink:#0f172a; --muted:#64748b;
+    --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Tajawal,"Segoe UI","Noto Naskh Arabic",Arial,sans-serif;color:var(--ink);
+    background:var(--bg);line-height:1.9}
+  header{background:linear-gradient(135deg,#0f172a,#0b3b37);color:#fff;padding:48px 24px}
+  header .wrap{max-width:980px;margin:0 auto}
+  header h1{margin:0 0 6px;font-size:32px}
+  header p{margin:0;color:#9fe7df}
+  .badge{display:inline-block;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+    padding:3px 12px;border-radius:999px;font-size:13px;margin-top:14px}
+  main{max-width:980px;margin:0 auto;padding:28px 24px 80px}
+  nav.toc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:24px 0}
+  nav.toc h3{margin:0 0 10px;font-size:13px;color:var(--muted)}
+  nav.toc a{display:inline-block;margin:4px 0 4px 16px;color:var(--brand);text-decoration:none;font-size:14px}
+  nav.toc a:hover{text-decoration:underline}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px;margin:18px 0;
+    box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  h2{margin:0 0 14px;font-size:22px;color:var(--brand2);display:flex;align-items:center;gap:10px}
+  h2 .n{background:var(--brand);color:#fff;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px}
+  h3{margin:18px 0 8px;font-size:17px}
+  p,li{font-size:15px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 12px;text-align:right;vertical-align:top}
+  th{background:#f1f5f9;font-weight:700}
+  code{background:#f1f5f9;padding:1px 6px;border-radius:6px;font-size:13px;direction:ltr;display:inline-block;
+    font-family:ui-monospace,Consolas,monospace}
+  pre{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:10px;overflow:auto;font-size:13px;direction:ltr;text-align:left}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+  .tile{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fbfdfd}
+  .tile h4{margin:0 0 4px;color:var(--brand2);font-size:15px}
+  .tile p{margin:0;color:var(--muted);font-size:13px}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700}
+  .yes{background:#dcfce7;color:#166534}.no{background:#fee2e2;color:#991b1b}.ro{background:#fef9c3;color:#854d0e}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px}
+  .flow .step{background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:8px 12px}
+  .flow .arr{color:var(--brand)}
+  .note{border-inline-start:4px solid var(--brand);background:#f0fdfa;padding:10px 16px;border-radius:8px;margin:12px 0}
+  footer{max-width:980px;margin:0 auto;padding:0 24px 48px;color:var(--muted);font-size:13px}
+  @media print{nav.toc{display:none}body{background:#fff}section{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>🏍️ نظام كانيجيا للدراجات النارية</h1>
+    <p>نظام سحابي للمحاسبة والمخزون والمبيعات والمشتريات — مع صلاحيات أمنية على مستوى المؤسسات.</p>
+    <span class="badge">Django REST + React/TypeScript · ثنائي اللغة (عربي/إنجليزي) · محاسبة القيد المزدوج</span>
+  </div>
+</header>
+
+<main>
+  <nav class="toc">
+    <h3>المحتويات</h3>
+    <a href="#overview">نظرة عامة</a>
+    <a href="#stack">التقنيات المستخدمة</a>
+    <a href="#arch">البنية المعمارية</a>
+    <a href="#modules">وحدات النظام</a>
+    <a href="#roles">الأدوار والصلاحيات</a>
+    <a href="#pricing">التسعير والأمان</a>
+    <a href="#inventory">دورة المخزون</a>
+    <a href="#accounting">محرّك المحاسبة</a>
+    <a href="#reports">التقارير</a>
+    <a href="#audit">التدقيق والسلامة</a>
+    <a href="#run">التشغيل محليًا</a>
+    <a href="#api">واجهة الـ API</a>
+  </nav>
+
+  <section id="overview">
+    <h2><span class="n">١</span> نظرة عامة</h2>
+    <p>نظام كانيجيا للدراجات النارية هو نظام تخطيط موارد (ERP) مخصّص لأعمال تجارة الدراجات النارية.
+      يدير <strong>المنتجات (المخزون) والعملاء والموردين والمبيعات والمشتريات</strong>،
+      ويحتفظ تلقائيًا بدفاتر <strong>محاسبية صحيحة بنظام القيد المزدوج</strong> خلف الكواليس —
+      فيحصل صاحب العمل على تقارير مالية دقيقة دون أي عمل محاسبي يدوي.</p>
+    <div class="grid">
+      <div class="tile"><h4>أصناف ومخزون</h4><p>كل منتج هو صنف مخزون له تكلفة بالمتوسط المرجّح وكمية محدّثة لحظيًا.</p></div>
+      <div class="tile"><h4>الشراء يزيد المخزون</h4><p>ترحيل فاتورة شراء يزيد المخزون ودَين المورّد تلقائيًا.</p></div>
+      <div class="tile"><h4>البيع ينقص المخزون</h4><p>ترحيل فاتورة بيع يخصم المخزون ويسجّل التكلفة والإيراد ويرفع دَين العميل.</p></div>
+      <div class="tile"><h4>تسعير للمدير فقط</h4><p>المدير العام وحده يحدّد الأسعار، والموظفون يبيعون بالسعر الرسمي.</p></div>
+      <div class="tile"><h4>ثنائي اللغة</h4><p>عربي (RTL) وإنجليزي (LTR) بالكامل مع زر تبديل واحد.</p></div>
+      <div class="tile"><h4>سجل تدقيق</h4><p>كل تغيير يُسجَّل: مَن ومتى والقيمة قبل/بعد.</p></div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <h2><span class="n">٢</span> التقنيات المستخدمة</h2>
+    <table>
+      <tr><th>الطبقة</th><th>التقنية</th><th>ملاحظات</th></tr>
+      <tr><td>الواجهة الأمامية</td><td>React + TypeScript + Vite + Tailwind</td><td>تصميم متجاوب، يدعم RTL/LTR</td></tr>
+      <tr><td>الخادم</td><td>Django 5 + Django REST Framework</td><td>مصادقة JWT وصلاحيات حسب الدور</td></tr>
+      <tr><td>قاعدة البيانات</td><td>PostgreSQL (إنتاج) / SQLite (محلي)</td><td>المبالغ تُخزَّن كـ <code>NUMERIC(19,4)</code> — وليس أرقام عشرية عائمة</td></tr>
+      <tr><td>التقارير</td><td>openpyxl (Excel)، reportlab (PDF)</td><td>كل تقرير يُصدَّر PDF وExcel مع الشعار</td></tr>
+      <tr><td>المصادقة</td><td>JWT + تشفير كلمات المرور</td><td>تسجيل الدخول محدود المعدّل (10/دقيقة)</td></tr>
+    </table>
+  </section>
+
+  <section id="arch">
+    <h2><span class="n">٣</span> البنية المعمارية</h2>
+    <p>القاعدة الذهبية: <strong>لا تكتب أي وحدة في دفتر الأستاذ مباشرة.</strong> المبيعات والمشتريات والمخزون
+      ترسل «حدثًا محاسبيًا متوازنًا» إلى <strong>محرّك المحاسبة</strong>، وهو الكود الوحيد المسموح له بكتابة القيود — بشكل ذرّي.</p>
+    <pre>React SPA (المتصفح)
+     │  HTTPS + JWT
+     ▼
+Django REST API ── حُرّاس: JWT → الدور/الصلاحية → التحقق → التدقيق
+     │
+     ├─ الوحدات: المبيعات · المشتريات · المخزون · العملاء · الموردون · المصروفات
+     │         │  ترسل أحداثًا متوازنة
+     │         ▼
+     └─ محرّك المحاسبة  (الكاتب الوحيد لدفتر الأستاذ)
+               • يتحقق أن المدين = الدائن
+               • يتحقق أن الفترة مفتوحة والحساب قابل للترحيل
+               • يكتب القيد وسطوره في معاملة واحدة
+                         │
+                         ▼
+                  قاعدة البيانات  →  التقارير ولوحة التحكم تقرأ من الدفتر</pre>
+  </section>
+
+  <section id="modules">
+    <h2><span class="n">٤</span> وحدات النظام</h2>
+    <table>
+      <tr><th>الوحدة</th><th>الوظيفة</th></tr>
+      <tr><td><strong>لوحة التحكم</strong></td><td>مؤشرات: إجمالي المبيعات والمشتريات، النقدية/البنك، الذمم المدينة والدائنة، آخر الحركات.</td></tr>
+      <tr><td><strong>المخزون</strong></td><td>المنتجات (أصناف)، ثلاثة مستويات أسعار، حركات المخزون، قائمة موردي كل صنف، تنبيهات نقص المخزون.</td></tr>
+      <tr><td><strong>المبيعات</strong></td><td>إنشاء وترحيل فواتير البيع (خصم مخزون + تكلفة)، دفعات العملاء، إشعارات دائنة، عروض أسعار، طباعة PDF.</td></tr>
+      <tr><td><strong>المشتريات</strong></td><td>فواتير الشراء (إضافة للمخزون)، دفعات الموردين، إشعارات مدينة.</td></tr>
+      <tr><td><strong>العملاء</strong></td><td>بيانات العملاء + الرصيد المستحق (محسوب من المستندات).</td></tr>
+      <tr><td><strong>الموردون</strong></td><td>بيانات الموردين + رصيد الدائنية.</td></tr>
+      <tr><td><strong>التقارير</strong></td><td>ميزان المراجعة، قائمة الدخل، الميزانية، ديون العملاء/الموردين، تقييم المخزون.</td></tr>
+      <tr><td><strong>منطقة الإدارة</strong></td><td>دليل الحسابات، القيود اليومية، المصروفات اليومية، إدارة المستخدمين، سجل التدقيق.</td></tr>
+    </table>
+  </section>
+
+  <section id="roles">
+    <h2><span class="n">٥</span> الأدوار والصلاحيات</h2>
+    <p>الصلاحيات مفروضة على الخادم. الواجهة تُخفي ما لا يحق للدور استخدامه، والـ API يرفضه في كل الأحوال.</p>
+    <table>
+      <tr><th>الصلاحية</th><th>المدير العام</th><th>المحاسب</th><th>موظف المبيعات</th><th>مُشاهِد</th></tr>
+      <tr><td>تحديد أسعار المنتجات</td><td><span class="pill yes">نعم</span></td><td><span class="pill no">لا</span></td><td><span class="pill no">لا</span></td><td><span class="pill no">لا</span></td></tr>
+      <tr><td>عرض التكلفة / الربح</td><td><span class="pill yes">نعم</span></td><td><span class="pill yes">نعم</span></td><td><span class="pill no">مخفي</span></td><td><span class="pill no">مخفي</span></td></tr>
+      <tr><td>إنشاء وترحيل المبيعات</td><td><span class="pill yes">نعم</span></td><td><span class="pill yes">نعم</span></td><td><span class="pill yes">نعم</span></td><td><span class="pill no">لا</span></td></tr>
+      <tr><td>ترحيل القيود المحاسبية</td><td><span class="pill yes">نعم</span></td><td><span class="pill yes">نعم</span></td><td><span class="pill no">لا</span></td><td><span class="pill no">لا</span></td></tr>
+      <tr><td>عرض القيود اليومية</td><td><span class="pill yes">نعم</span></td><td><span class="pill yes">نعم</span></td><td><span class="pill no">لا</span></td><td><span class="pill no">لا</span></td></tr>
+      <tr><td>التقارير المالية</td><td><span class="pill yes">نعم</span></td><td><span class="pill yes">نعم</span></td><td><span class="pill no">لا</span></td><td><span class="pill no">لا</span></td></tr>
+      <tr><td>إدارة المستخدمين</td><td><span class="pill yes">نعم</span></td><td><span class="pill no">لا</span></td><td><span class="pill no">لا</span></td><td><span class="pill no">لا</span></td></tr>
+      <tr><td>عرض سجل التدقيق</td><td><span class="pill yes">نعم</span></td><td><span class="pill no">لا</span></td><td><span class="pill no">لا</span></td><td><span class="pill no">لا</span></td></tr>
+      <tr><td>البيانات العامة</td><td>كامل</td><td>إدارة</td><td>بيع فقط</td><td><span class="pill ro">قراءة فقط</span></td></tr>
+    </table>
+  </section>
+
+  <section id="pricing">
+    <h2><span class="n">٦</span> التسعير والأمان المالي</h2>
+    <h3>ثلاثة مستويات أسعار (للمدير العام فقط)</h3>
+    <ul>
+      <li><strong>مفرّق</strong> · <strong>جملة</strong> · <strong>جملة الجملة</strong></li>
+      <li>بالإضافة إلى <strong>سعر التكلفة</strong> و<strong>أدنى سعر بيع</strong> و<strong>أقصى نسبة خصم</strong> — كلها للمدير فقط.</li>
+    </ul>
+    <h3>الخادم هو مصدر الحقيقة</h3>
+    <div class="note">عند ترحيل عملية بيع، <strong>يتجاهل الخادم أي سعر يُرسله المتصفح</strong> ويحمّل السعر الرسمي
+      والضريبة من بطاقة المنتج. أي طلب مُتلاعب به مثل
+      <code>{ product:1, quantity:5, unit_price:1 }</code> يُستبدَل بالسعر الحقيقي.</div>
+    <ul>
+      <li>موظفو المبيعات لا يستطيعون تعديل الأسعار أو تجاوزها أو اختراعها (السطور بسعر مخصّص للمدير فقط).</li>
+      <li>البيع تحت أدنى سعر مرفوض (يمكن للمدير العام التجاوز).</li>
+      <li>أسعار التكلفة والأرباح تُحذف من استجابات الـ API للأدوار غير المخوّلة.</li>
+    </ul>
+    <h3>قفل المستندات</h3>
+    <ul>
+      <li>الفواتير والدفعات والقيود بعد الترحيل <strong>غير قابلة للتعديل</strong>.</li>
+      <li>السجلات المالية <strong>لا تُحذف أبدًا</strong>: الحالات هي مسودة ← مُرحَّل ← مُلغى.</li>
+      <li>إلغاء فاتورة مُرحَّلة <strong>يعكس القيد ويعيد المخزون</strong> — مع أثر تدقيقي كامل.</li>
+    </ul>
+  </section>
+
+  <section id="inventory">
+    <h2><span class="n">٧</span> دورة المخزون</h2>
+    <div class="flow">
+      <span class="step">شراء ١٠ بسعر ٨٠</span><span class="arr">←</span>
+      <span class="step">المخزون ١٠، تكلفة ٨٠</span><span class="arr">←</span>
+      <span class="step">بيع ٣ بسعر ١٢٠</span><span class="arr">←</span>
+      <span class="step">المخزون ٧ (خصم تلقائي ٣)</span><span class="arr">←</span>
+      <span class="step">تكلفة ٢٤٠، إيراد ٣٦٠</span>
+    </div>
+    <ul>
+      <li>طريقة التقييم: <strong>المتوسط المرجّح للتكلفة</strong>، يُعاد حسابه مع كل استلام.</li>
+      <li>الكميات تتغيّر <strong>فقط</strong> عبر الشراء والبيع والمرتجعات وتسويات المدير — وكل تغيير يُسجَّل في حركة مخزون (دفتر مخزون كامل).</li>
+      <li>البيع بأكثر من المتوفر مرفوض.</li>
+      <li>كل منتج يتتبّع الموردين الذين يبيعونه مع تكلفة كل مورّد (قابلة للطباعة).</li>
+    </ul>
+  </section>
+
+  <section id="accounting">
+    <h2><span class="n">٨</span> محرّك المحاسبة (القيد المزدوج)</h2>
+    <p>كل عملية تُنتج قيدًا متوازنًا. أمثلة:</p>
+    <table>
+      <tr><th>الحدث</th><th>مدين</th><th>دائن</th></tr>
+      <tr><td>فاتورة بيع</td><td>الذمم المدينة</td><td>إيراد المبيعات + ضريبة مستحقة</td></tr>
+      <tr><td>+ المخزون المُباع</td><td>تكلفة البضاعة المباعة</td><td>المخزون</td></tr>
+      <tr><td>دفعة عميل</td><td>النقدية / البنك</td><td>الذمم المدينة</td></tr>
+      <tr><td>فاتورة شراء</td><td>المخزون + ضريبة قابلة للاسترداد</td><td>الذمم الدائنة</td></tr>
+      <tr><td>دفعة مورّد</td><td>الذمم الدائنة</td><td>النقدية / البنك</td></tr>
+    </table>
+    <div class="note">المحرّك يرفض أي قيد غير متوازن، وأي ترحيل في فترة مغلقة، وأي ترحيل لحساب غير قابل للترحيل —
+      ويكتب كل شيء في معاملة واحدة ذرّية.</div>
+  </section>
+
+  <section id="reports">
+    <h2><span class="n">٩</span> التقارير</h2>
+    <p>كل التقارير تُشتق مباشرة من دفتر الأستاذ وسجلات المخزون — وليس من أرصدة يدوية. وكلها تُصدَّر
+      <strong>PDF</strong> و<strong>Excel</strong> مع شعار الشركة.</p>
+    <div class="grid">
+      <div class="tile"><h4>ميزان المراجعة</h4><p>كل الحسابات؛ المدين يساوي الدائن.</p></div>
+      <div class="tile"><h4>قائمة الدخل</h4><p>الإيرادات − المصروفات = صافي الربح/الخسارة.</p></div>
+      <div class="tile"><h4>الميزانية العمومية</h4><p>الأصول = الخصوم + حقوق الملكية.</p></div>
+      <div class="tile"><h4>ديون العملاء</h4><p>مَن يدين لك وكم.</p></div>
+      <div class="tile"><h4>ديون الموردين</h4><p>مَن تدين له وكم.</p></div>
+      <div class="tile"><h4>تقييم المخزون</h4><p>الكمية × متوسط التكلفة.</p></div>
+    </div>
+  </section>
+
+  <section id="audit">
+    <h2><span class="n">١٠</span> التدقيق والسلامة</h2>
+    <ul>
+      <li><strong>سجل التدقيق</strong> يحفظ المستخدم والإجراء والكيان والقيمة قبل/بعد وعنوان IP والوقت — للإضافة فقط ولعرض المدير فقط.</li>
+      <li>أرصدة العملاء والموردين تُحسب دائمًا من الفواتير والدفعات والإشعارات — غير قابلة للتعديل المباشر.</li>
+      <li>أرصدة النقدية/البنك مشتقة من قيود الدفتر.</li>
+      <li>المبالغ تستخدم أرقامًا عشرية ثابتة (بلا أخطاء تقريب).</li>
+    </ul>
+  </section>
+
+  <section id="run">
+    <h2><span class="n">١١</span> التشغيل محليًا</h2>
+    <h3>الخادم (Backend)</h3>
+    <pre>cd backend
+.venv\Scripts\activate
+python manage.py migrate
+python manage.py seed_coa
+python manage.py seed_roles
+python manage.py runserver        # http://127.0.0.1:8000</pre>
+    <h3>الواجهة (Frontend)</h3>
+    <pre>cd frontend
+npm install
+npm run dev                        # http://localhost:5173</pre>
+    <h3>تصفير كل البيانات (مع الإبقاء على المستخدمين والحسابات والإعدادات)</h3>
+    <pre>python manage.py reset_data --yes</pre>
+    <div class="note">بيانات الدخول الافتراضية: <code>admin</code> / <code>Admin12345</code> — يُرجى تغييرها بعد أول دخول.
+      لوحة إدارة Django على <code>http://127.0.0.1:8000/admin/</code>.</div>
+  </section>
+
+  <section id="api">
+    <h2><span class="n">١٢</span> واجهة الـ API (ملخّص)</h2>
+    <p>المسار الأساسي: <code>/api</code>. كل المسارات تتطلب رمز JWT عبر <code>Authorization: Bearer &lt;token&gt;</code> عدا تسجيل الدخول.</p>
+    <table>
+      <tr><th>المجال</th><th>المسار</th></tr>
+      <tr><td>المصادقة</td><td><code>POST /api/auth/login/</code> · <code>GET /api/auth/me/</code></td></tr>
+      <tr><td>المنتجات</td><td><code>/api/inventory/products/</code> · <code>/movements/</code></td></tr>
+      <tr><td>المبيعات</td><td><code>/api/sales/invoices/</code> + <code>/post_invoice/</code> · <code>/cancel/</code> · <code>/pdf/</code></td></tr>
+      <tr><td>المشتريات</td><td><code>/api/purchases/invoices/</code> + <code>/post_invoice/</code> · <code>/cancel/</code></td></tr>
+      <tr><td>العملاء / الموردون</td><td><code>/api/customers/</code> · <code>/api/suppliers/</code></td></tr>
+      <tr><td>التقارير</td><td><code>/api/reports/&lt;name&gt;/export/?fmt=pdf|excel</code></td></tr>
+      <tr><td>توثيق تفاعلي</td><td><code>GET /api/docs/</code> (Swagger)</td></tr>
+    </table>
+  </section>
+</main>
+
+<footer>
+  نظام كانيجيا للدراجات النارية — دليل مُولّد. افتح هذا الملف في أي متصفح، واستخدم «طباعة ← حفظ كـ PDF» لنسخة PDF.
+</footer>
+</body>
+</html>

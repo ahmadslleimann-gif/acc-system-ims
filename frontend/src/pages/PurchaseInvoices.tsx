@@ -5,6 +5,8 @@ import { useList, useAction } from "../api/hooks";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import DataTable from "../components/DataTable";
+import SearchBar from "../components/SearchBar";
+import { payBadge } from "./SalesInvoices";
 
 interface Invoice {
   id: number;
@@ -13,6 +15,15 @@ interface Invoice {
   date: string;
   status: string;
   total: string;
+  payment_type: string;
+  payment_status: string;
+  outstanding: string;
+  items: { description: string; quantity: string }[];
+}
+
+function itemsSummary(items: { description: string; quantity: string }[]) {
+  if (!items?.length) return "—";
+  return items.map((i) => `${i.description} ×${Number(i.quantity)}`).join("، ");
 }
 interface Supplier { id: number; name: string; }
 interface Product { id: number; code: string; name_en: string; kind: string; average_cost: string; tax_rate: number | null; }
@@ -24,13 +35,19 @@ export default function PurchaseInvoices() {
   const qc = useQueryClient();
   const canAdd = isAdmin || can("purchases.add_purchaseinvoice");
 
-  const { data, isLoading } = useList<Invoice>("purchases/invoices/", { page_size: 100 });
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const listParams: Record<string, unknown> = { page_size: 100 };
+  if (search) listParams.search = search;
+  if (status) listParams.status = status;
+  const { data, isLoading } = useList<Invoice>("purchases/invoices/", listParams);
   const { data: suppliers } = useList<Supplier>("suppliers/", { page_size: 500 });
   const { data: products } = useList<Product>("inventory/products/", { page_size: 500 });
   const action = useAction("purchases/invoices/");
 
   const [open, setOpen] = useState(false);
   const [supplier, setSupplier] = useState("");
+  const [paymentType, setPaymentType] = useState<"CASH" | "CREDIT">("CASH");
   const [lines, setLines] = useState<Line[]>([{ product: "", description: "", quantity: "1", unit_price: "0", tax_rate: null }]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -61,6 +78,7 @@ export default function PurchaseInvoices() {
       const payload = {
         supplier: Number(supplier),
         date: new Date().toISOString().slice(0, 10),
+        payment_type: paymentType,
         items: lines
           .filter((l) => Number(l.quantity) > 0)
           .map((l) => ({
@@ -109,6 +127,13 @@ export default function PurchaseInvoices() {
                 ))}
               </select>
             </div>
+            <div>
+              <label className="label">{t("paymentType")}</label>
+              <select className="input" value={paymentType} onChange={(e) => setPaymentType(e.target.value as "CASH" | "CREDIT")}>
+                <option value="CASH">{t("cash")}</option>
+                <option value="CREDIT">{t("credit")}</option>
+              </select>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -132,9 +157,7 @@ export default function PurchaseInvoices() {
                         <option key={p.id} value={p.id}>{p.code} · {p.name_en}</option>
                       ))}
                     </select>
-                    {l.product === "" && (
-                      <input className="input mt-1" placeholder="Description" value={l.description} onChange={(e) => updateLine(idx, { description: e.target.value })} />
-                    )}
+                    <input className="input mt-1" placeholder={t("itemName")} value={l.description} onChange={(e) => updateLine(idx, { description: e.target.value })} />
                   </td>
                   <td className="pe-2"><input className="input w-24" type="number" step="0.001" value={l.quantity} onChange={(e) => updateLine(idx, { quantity: e.target.value })} /></td>
                   <td className="pe-2"><input className="input w-28" type="number" step="0.01" value={l.unit_price} onChange={(e) => updateLine(idx, { unit_price: e.target.value })} /></td>
@@ -172,15 +195,34 @@ export default function PurchaseInvoices() {
         </div>
       )}
 
+      <SearchBar
+        onSearch={setSearch}
+        placeholder={`${t("search")} (invoice, supplier…)`}
+        filters={[
+          {
+            value: status,
+            onChange: setStatus,
+            options: [
+              { label: t("all"), value: "" },
+              { label: t("draft"), value: "DRAFT" },
+              { label: t("posted"), value: "POSTED" },
+            ],
+          },
+        ]}
+      />
+
       <DataTable
         loading={isLoading}
         rows={data?.results || []}
         columns={[
           { key: "doc_no", label: "Invoice" },
           { key: "supplier_name", label: t("supplier") },
+          { key: "items", label: t("itemName"), render: (r) => <span className="text-slate-600">{itemsSummary(r.items)}</span> },
           { key: "date", label: "Date" },
           { key: "total", label: t("total"), render: (r) => Number(r.total).toLocaleString() },
-          { key: "status", label: "Status" },
+          { key: "payment_type", label: t("paymentType"), render: (r) => (r.payment_type === "CASH" ? t("cash") : t("credit")) },
+          { key: "outstanding", label: t("outstanding"), render: (r) => (Number(r.outstanding) > 0 ? <span className="text-red-600 font-semibold">{Number(r.outstanding).toLocaleString()}</span> : "—") },
+          { key: "payment_status", label: t("status"), render: (r) => payBadge(r.payment_status, t) },
           {
             key: "actions",
             label: "",

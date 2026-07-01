@@ -11,22 +11,59 @@ type Tab =
   | "income-statement"
   | "balance-sheet";
 
+async function downloadReport(report: string, fmt: "excel" | "pdf") {
+  const res = await api.get(`/reports/${report}/export/`, {
+    params: { fmt },
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${report}.${fmt === "pdf" ? "pdf" : "xlsx"}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function Reports() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("customer-debts");
+  const [downloading, setDownloading] = useState<"" | "excel" | "pdf">("");
+
+  async function handleDownload(fmt: "excel" | "pdf") {
+    setDownloading(fmt);
+    try {
+      await downloadReport(tab, fmt);
+    } catch {
+      alert("Export failed. Please try again.");
+    } finally {
+      setDownloading("");
+    }
+  }
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "customer-debts", label: t("customerDebts") },
     { key: "supplier-debts", label: t("supplierDebts") },
     { key: "inventory-valuation", label: t("inventoryValuation") },
-    { key: "trial-balance", label: "Trial Balance" },
-    { key: "income-statement", label: "Income Statement" },
-    { key: "balance-sheet", label: "Balance Sheet" },
+    { key: "trial-balance", label: t("trialBalance") },
+    { key: "income-statement", label: t("incomeStatement") },
+    { key: "balance-sheet", label: t("balanceSheet") },
   ];
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-800">{t("reports")}</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-2xl font-bold text-slate-800">{t("reports")}</h1>
+        <div className="flex gap-2">
+          <button className="btn-ghost text-sm" disabled={!!downloading} onClick={() => handleDownload("excel")}>
+            {downloading === "excel" ? "…" : "⬇ Excel"}
+          </button>
+          <button className="btn-ghost text-sm" disabled={!!downloading} onClick={() => handleDownload("pdf")}>
+            {downloading === "pdf" ? "…" : "⬇ PDF"}
+          </button>
+        </div>
+      </div>
       <div className="flex flex-wrap gap-2">
         {TABS.map((r) => (
           <button key={r.key} onClick={() => setTab(r.key)} className={tab === r.key ? "btn-primary" : "btn-ghost"}>
@@ -35,8 +72,8 @@ export default function Reports() {
         ))}
       </div>
       <div className="card p-5 overflow-auto">
-        {tab === "customer-debts" && <PartnerDebts endpoint="customers/" who={t("customer")} />}
-        {tab === "supplier-debts" && <PartnerDebts endpoint="suppliers/" who={t("supplier")} />}
+        {tab === "customer-debts" && <PartnerDebts report="customer-debts" who={t("customer")} />}
+        {tab === "supplier-debts" && <PartnerDebts report="supplier-debts" who={t("supplier")} />}
         {tab === "inventory-valuation" && <InventoryValuation />}
         {tab === "trial-balance" && <AccountingReport endpoint="trial-balance" />}
         {tab === "income-statement" && <AccountingReport endpoint="income-statement" />}
@@ -46,15 +83,14 @@ export default function Reports() {
   );
 }
 
-function PartnerDebts({ endpoint, who }: { endpoint: string; who: string }) {
+function PartnerDebts({ report, who }: { report: string; who: string }) {
   const { t } = useTranslation();
   const { data, isLoading } = useQuery({
-    queryKey: [endpoint, "debts"],
-    queryFn: async () => (await api.get(`/${endpoint}?page_size=1000`)).data,
+    queryKey: ["reports", report],
+    queryFn: async () => (await api.get(`/reports/${report}/`)).data,
   });
   if (isLoading) return <div className="text-slate-400">Loading…</div>;
-  const rows = (data?.results || []).filter((r: { balance: string }) => Number(r.balance) !== 0);
-  const total = rows.reduce((s: number, r: { balance: string }) => s + Number(r.balance), 0);
+  const rows = data?.rows || [];
   if (!rows.length) return <div className="text-slate-400">No outstanding balances. 🎉</div>;
   return (
     <table className="w-full text-sm">
@@ -62,14 +98,18 @@ function PartnerDebts({ endpoint, who }: { endpoint: string; who: string }) {
         <tr className="text-slate-500 border-b">
           <th className="text-start py-2">{who}</th>
           <th className="text-start">Code</th>
-          <th className="text-end">{t("debt")}</th>
+          <th className="text-end">{t("invoices")}</th>
+          <th className="text-end">{t("payments")}</th>
+          <th className="text-end">{t("balance")}</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((r: { id: number; name: string; code: string; balance: string }) => (
-          <tr key={r.id} className="border-b border-slate-100">
+        {rows.map((r: { code: string; name: string; invoices: string; payments: string; balance: string }) => (
+          <tr key={r.code} className="border-b border-slate-100">
             <td className="py-2 font-medium">{r.name}</td>
             <td className="text-slate-500">{r.code}</td>
+            <td className="text-end">{Number(r.invoices).toLocaleString()}</td>
+            <td className="text-end">{Number(r.payments).toLocaleString()}</td>
             <td className={`text-end font-semibold ${Number(r.balance) > 0 ? "text-red-600" : "text-emerald-600"}`}>
               {Number(r.balance).toLocaleString()}
             </td>
@@ -77,7 +117,9 @@ function PartnerDebts({ endpoint, who }: { endpoint: string; who: string }) {
         ))}
         <tr className="font-bold">
           <td className="py-2" colSpan={2}>{t("total")}</td>
-          <td className="text-end">{total.toLocaleString()}</td>
+          <td className="text-end">{Number(data.total_invoices).toLocaleString()}</td>
+          <td className="text-end">{Number(data.total_payments).toLocaleString()}</td>
+          <td className="text-end">{Number(data.total_balance).toLocaleString()}</td>
         </tr>
       </tbody>
     </table>
@@ -120,18 +162,99 @@ function InventoryValuation() {
   );
 }
 
+const money = (v: unknown) => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function AccountingReport({ endpoint }: { endpoint: string }) {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ["report", endpoint],
     queryFn: async () => (await api.get(`/reports/${endpoint}/`)).data,
   });
   if (isLoading) return <div className="text-slate-400">Loading…</div>;
-  return (
-    <div className="space-y-2">
-      <a className="btn-ghost text-xs" href={`${import.meta.env.VITE_API_BASE_URL}/reports/${endpoint}/export/?format=excel`} target="_blank">
-        ⬇ Excel
-      </a>
-      <pre className="text-xs text-slate-700 whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre>
-    </div>
-  );
+  if (!data) return null;
+
+  if (endpoint === "trial-balance") {
+    return (
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-slate-500 border-b">
+            <th className="text-start py-2">{t("account")}</th>
+            <th className="text-end">{t("debit")}</th>
+            <th className="text-end">{t("creditSide")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.rows.map((r: { code: string; name: string; debit: string; credit: string }) => (
+            <tr key={r.code} className="border-b border-slate-100">
+              <td className="py-2"><span className="text-slate-400 me-2">{r.code}</span>{r.name}</td>
+              <td className="text-end">{Number(r.debit) ? money(r.debit) : "—"}</td>
+              <td className="text-end">{Number(r.credit) ? money(r.credit) : "—"}</td>
+            </tr>
+          ))}
+          <tr className="font-bold">
+            <td className="py-2">{t("total")}</td>
+            <td className="text-end">{money(data.total_debit)}</td>
+            <td className="text-end">{money(data.total_credit)}</td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  }
+
+  if (endpoint === "income-statement") {
+    const Section = ({ title, rows, total }: { title: string; rows: { code: string; name: string; amount: string }[]; total: string }) => (
+      <>
+        <tr className="bg-slate-50"><td className="py-2 font-semibold" colSpan={2}>{title}</td></tr>
+        {rows.map((r) => (
+          <tr key={r.code} className="border-b border-slate-100">
+            <td className="py-1 ps-4"><span className="text-slate-400 me-2">{r.code}</span>{r.name}</td>
+            <td className="text-end">{money(r.amount)}</td>
+          </tr>
+        ))}
+        <tr className="border-b font-medium"><td className="py-1 ps-4">{t("total")} {title}</td><td className="text-end">{money(total)}</td></tr>
+      </>
+    );
+    return (
+      <table className="w-full text-sm">
+        <tbody>
+          <Section title={t("revenue")} rows={data.revenue} total={data.total_revenue} />
+          <Section title={t("expenses")} rows={data.expenses} total={data.total_expenses} />
+          <tr className="font-bold text-base">
+            <td className="py-3">{t("netIncome")}</td>
+            <td className={`text-end ${Number(data.net_income) >= 0 ? "text-emerald-600" : "text-red-600"}`}>{money(data.net_income)}</td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  }
+
+  if (endpoint === "balance-sheet") {
+    const Section = ({ title, rows, total }: { title: string; rows: { code: string; name: string; amount: string }[]; total: string }) => (
+      <>
+        <tr className="bg-slate-50"><td className="py-2 font-semibold" colSpan={2}>{title}</td></tr>
+        {rows.map((r) => (
+          <tr key={r.code} className="border-b border-slate-100">
+            <td className="py-1 ps-4"><span className="text-slate-400 me-2">{r.code}</span>{r.name}</td>
+            <td className="text-end">{money(r.amount)}</td>
+          </tr>
+        ))}
+        <tr className="border-b font-medium"><td className="py-1 ps-4">{t("total")} {title}</td><td className="text-end">{money(total)}</td></tr>
+      </>
+    );
+    return (
+      <table className="w-full text-sm">
+        <tbody>
+          <Section title={t("assets")} rows={data.assets} total={data.total_assets} />
+          <Section title={t("liabilities")} rows={data.liabilities} total={data.total_liabilities} />
+          <Section title={t("equity")} rows={data.equity} total={data.total_equity} />
+          <tr className="font-bold">
+            <td className="py-2">{t("total")} ({t("liabilities")} + {t("equity")})</td>
+            <td className="text-end">{money(data.total_liabilities_equity)}</td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  }
+
+  return <pre className="text-xs text-slate-700 whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre>;
 }

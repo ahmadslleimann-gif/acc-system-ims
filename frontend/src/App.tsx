@@ -8,9 +8,11 @@ import JournalEntries from "./pages/JournalEntries";
 import Customers from "./pages/Customers";
 import Suppliers from "./pages/Suppliers";
 import SalesInvoices from "./pages/SalesInvoices";
+import CustomerPayments from "./pages/CustomerPayments";
 import PurchaseInvoices from "./pages/PurchaseInvoices";
-import CashBanks from "./pages/CashBanks";
+import SupplierPayments from "./pages/SupplierPayments";
 import Inventory from "./pages/Inventory";
+import Expenses from "./pages/Expenses";
 import Reports from "./pages/Reports";
 import UserManagement from "./pages/UserManagement";
 
@@ -38,9 +40,11 @@ export default function App() {
         <Route path="customers" element={<Customers />} />
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="sales" element={<SalesInvoices />} />
+        <Route path="customer-payments" element={<CustomerPayments />} />
         <Route path="purchases" element={<PurchaseInvoices />} />
-        <Route path="cash-banks" element={<CashBanks />} />
+        <Route path="supplier-payments" element={<SupplierPayments />} />
         <Route path="inventory" element={<Inventory />} />
+        <Route path="expenses" element={<Expenses />} />
         <Route path="reports" element={<Reports />} />
         <Route path="users" element={<UserManagement />} />
       </Route>

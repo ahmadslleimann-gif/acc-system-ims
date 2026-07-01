@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import Product, StockMovement
+from .models import Product, StockMovement, ProductSupplier
+
+
+@admin.register(ProductSupplier)
+class ProductSupplierAdmin(admin.ModelAdmin):
+    list_display = ("product", "supplier", "cost", "last_purchase_price", "is_preferred")
+    list_filter = ("is_preferred",)
+    search_fields = ("product__code", "supplier__name")
 
 
 @admin.register(Product)

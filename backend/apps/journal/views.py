@@ -16,6 +16,7 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
     filterset_fields = ["status", "entry_date", "source_type"]
     search_fields = ["entry_no", "memo", "source_id"]
     required_perms = {
+        "GET": ["journal.view_journalentry"],
         "POST": ["journal.add_journalentry"],
         "PUT": ["journal.change_journalentry"],
         "PATCH": ["journal.change_journalentry"],

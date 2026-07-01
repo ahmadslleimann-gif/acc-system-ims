@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useList, useCreate } from "../api/hooks";
 import DataTable from "../components/DataTable";
+import SearchBar from "../components/SearchBar";
 import { useAuth } from "../auth/AuthContext";
 
 interface Customer {
@@ -18,7 +19,12 @@ export default function Customers() {
   const { t } = useTranslation();
   const { can, isAdmin } = useAuth();
   const canAdd = isAdmin || can("customers.add_customer");
-  const { data, isLoading } = useList<Customer>("customers/", { page_size: 100 });
+  const [search, setSearch] = useState("");
+  const [active, setActive] = useState("");
+  const params: Record<string, unknown> = { page_size: 100 };
+  if (search) params.search = search;
+  if (active) params.is_active = active;
+  const { data, isLoading } = useList<Customer>("customers/", params);
   const create = useCreate<Customer>("customers/");
   const [form, setForm] = useState({ code: "", name: "", phone: "", email: "" });
   const [open, setOpen] = useState(false);
@@ -43,7 +49,6 @@ export default function Customers() {
 
       {open && (
         <form onSubmit={submit} className="card p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <input className="input" placeholder="Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} required />
           <input className="input" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <input className="input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           <input className="input" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -53,11 +58,26 @@ export default function Customers() {
         </form>
       )}
 
+      <SearchBar
+        onSearch={setSearch}
+        placeholder={`${t("search")} (code, name, phone…)`}
+        filters={[
+          {
+            value: active,
+            onChange: setActive,
+            options: [
+              { label: t("all"), value: "" },
+              { label: t("active"), value: "true" },
+              { label: t("inactive"), value: "false" },
+            ],
+          },
+        ]}
+      />
+
       <DataTable
         loading={isLoading}
         rows={data?.results || []}
         columns={[
-          { key: "code", label: "Code" },
           { key: "name", label: "Name" },
           { key: "phone", label: "Phone" },
           { key: "email", label: "Email" },

@@ -53,8 +53,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi label={t("totalSales")} value={fmt(data.total_sales)} accent="text-brand-700" />
         <Kpi label={t("totalPurchases")} value={fmt(data.total_purchases)} />
+        <Kpi label={t("totalExpenses")} value={fmt(data.total_expenses)} accent="text-red-600" />
         <Kpi label={t("cashBalance")} value={fmt(data.cash_balance)} />
-        <Kpi label={t("bankBalance")} value={fmt(data.bank_balance)} />
         <Kpi label={t("receivables")} value={fmt(data.receivables)} accent="text-amber-600" />
         <Kpi label={t("payables")} value={fmt(data.payables)} accent="text-amber-600" />
       </div>

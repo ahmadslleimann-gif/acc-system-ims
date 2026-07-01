@@ -14,23 +14,56 @@ def _as_date(value):
 
 
 def partner_balance(kind: str, partner_id: int) -> Decimal:
-    """Outstanding balance for a customer (receivable) or supplier (payable)."""
+    """
+    Outstanding balance for a customer (receivable) or supplier (payable).
+    Only CREDIT invoices create debt — cash invoices are settled on the spot.
+    Balance = credit invoices − payments − return notes.
+    """
     if kind == "customer":
-        from apps.sales.models import SalesInvoice, CustomerPayment, CreditNote, DocStatus
-        invoices = SalesInvoice.objects.filter(customer_id=partner_id, status=DocStatus.POSTED)
+        from apps.sales.models import SalesInvoice, CustomerPayment, CreditNote, DocStatus, PaymentType
+        invoices = SalesInvoice.objects.filter(customer_id=partner_id, status=DocStatus.POSTED, payment_type=PaymentType.CREDIT)
         payments = CustomerPayment.objects.filter(customer_id=partner_id, status=DocStatus.POSTED)
         notes = CreditNote.objects.filter(customer_id=partner_id, status=DocStatus.POSTED)
         charged = sum((i.total for i in invoices), ZERO)
         credited = sum((p.amount for p in payments), ZERO) + sum((n.total for n in notes), ZERO)
         return charged - credited
 
-    from apps.purchases.models import PurchaseInvoice, SupplierPayment, DebitNote, DocStatus
-    invoices = PurchaseInvoice.objects.filter(supplier_id=partner_id, status=DocStatus.POSTED)
+    from apps.purchases.models import PurchaseInvoice, SupplierPayment, DebitNote, DocStatus, PaymentType
+    invoices = PurchaseInvoice.objects.filter(supplier_id=partner_id, status=DocStatus.POSTED, payment_type=PaymentType.CREDIT)
     payments = SupplierPayment.objects.filter(supplier_id=partner_id, status=DocStatus.POSTED)
     notes = DebitNote.objects.filter(supplier_id=partner_id, status=DocStatus.POSTED)
     charged = sum((i.total for i in invoices), ZERO)
     settled = sum((p.amount for p in payments), ZERO) + sum((n.total for n in notes), ZERO)
     return charged - settled
+
+
+def partner_debts(kind: str) -> dict:
+    """Debts report rows: per partner -> invoices, payments, balance (credit only)."""
+    if kind == "customer":
+        from apps.customers.models import Customer
+        from apps.sales.models import SalesInvoice, CustomerPayment, DocStatus, PaymentType
+        partners = Customer.objects.order_by("code")
+        inv_model, pay_model, fk = SalesInvoice, CustomerPayment, "customer_id"
+    else:
+        from apps.suppliers.models import Supplier
+        from apps.purchases.models import PurchaseInvoice, SupplierPayment, DocStatus, PaymentType
+        partners = Supplier.objects.order_by("code")
+        inv_model, pay_model, fk = PurchaseInvoice, SupplierPayment, "supplier_id"
+
+    rows = []
+    t_inv = t_pay = t_bal = ZERO
+    for p in partners:
+        invoices = sum((i.total for i in inv_model.objects.filter(
+            **{fk: p.id}, status=DocStatus.POSTED, payment_type=PaymentType.CREDIT)), ZERO)
+        payments = sum((x.amount for x in pay_model.objects.filter(
+            **{fk: p.id}, status=DocStatus.POSTED)), ZERO)
+        balance = invoices - payments
+        if invoices == 0 and balance == 0:
+            continue
+        rows.append({"code": p.code, "name": p.name,
+                     "invoices": str(invoices), "payments": str(payments), "balance": str(balance)})
+        t_inv += invoices; t_pay += payments; t_bal += balance
+    return {"rows": rows, "total_invoices": str(t_inv), "total_payments": str(t_pay), "total_balance": str(t_bal)}
 
 
 def partner_ledger(kind: str, partner_id: int, date_from=None, date_to=None) -> dict:

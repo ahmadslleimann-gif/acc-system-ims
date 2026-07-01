@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.permissions import HasModelPermission
 from .models import CompanyProfile, TaxRate, FiscalPeriod
 from .serializers import (
     CompanyProfileSerializer, TaxRateSerializer, FiscalPeriodSerializer,
@@ -28,9 +29,16 @@ class CompanyProfileView(APIView):
 
 
 class TaxRateViewSet(viewsets.ModelViewSet):
+    # Readable by any authenticated user; only admins may change tax rates.
     queryset = TaxRate.objects.all()
     serializer_class = TaxRateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasModelPermission]
+    required_perms = {
+        "POST": ["company.add_taxrate"],
+        "PUT": ["company.change_taxrate"],
+        "PATCH": ["company.change_taxrate"],
+        "DELETE": ["company.delete_taxrate"],
+    }
 
 
 class FiscalPeriodViewSet(viewsets.ModelViewSet):

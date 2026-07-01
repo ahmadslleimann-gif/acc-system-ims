@@ -11,12 +11,19 @@ class DocStatus(models.TextChoices):
     CANCELLED = "CANCELLED", "Cancelled"
 
 
+class PaymentType(models.TextChoices):
+    CASH = "CASH", "Cash"
+    CREDIT = "CREDIT", "Credit"
+
+
 class PurchaseInvoice(TimeStampedModel):
     doc_no = models.CharField(max_length=30, unique=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="invoices")
     supplier_ref = models.CharField(max_length=64, blank=True)  # supplier's own invoice no.
     date = models.DateField()
     due_date = models.DateField(null=True, blank=True)
+    payment_type = models.CharField(max_length=6, choices=PaymentType.choices, default=PaymentType.CASH)
+    amount_paid = money_field()
     status = models.CharField(max_length=12, choices=DocStatus.choices, default=DocStatus.DRAFT)
     subtotal = money_field()
     tax_amount = money_field()
@@ -32,6 +39,18 @@ class PurchaseInvoice(TimeStampedModel):
 
     class Meta:
         ordering = ["-date", "-id"]
+
+    @property
+    def outstanding(self):
+        return max(self.total - self.amount_paid, 0) if self.status == DocStatus.POSTED else 0
+
+    @property
+    def payment_status(self):
+        if self.status != DocStatus.POSTED:
+            return self.status
+        if self.amount_paid >= self.total:
+            return "PAID"
+        return "PARTIAL" if self.amount_paid > 0 else "UNPAID"
 
     def __str__(self):
         return self.doc_no

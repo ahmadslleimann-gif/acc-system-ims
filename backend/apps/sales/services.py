@@ -8,6 +8,40 @@ from apps.journal.models import JournalEntry
 from .models import SalesInvoice, CustomerPayment, CreditNote, DocStatus
 
 
+def _apply_official_pricing(invoice: SalesInvoice, user=None):
+    """
+    SECURITY: the server is the source of truth for price & tax.
+    For stock products we OVERWRITE the client-sent unit_price with the official
+    tier price from the product master, pull the product's tax rate, and reject
+    anything below minimum_selling_price (Super Admin may override).
+    Free-text lines (no product) keep their entered price.
+    """
+    from apps.common.roles import is_super_admin
+    from apps.common.exceptions import AccountingError
+
+    is_admin = is_super_admin(user)
+    for item in invoice.items.select_related("product"):
+        product = item.product
+        if not product:
+            # Free-text (custom-priced) lines are an admin-only capability — otherwise
+            # a non-admin could define an arbitrary price outside the product master.
+            if not is_admin and (item.unit_price or 0) > 0:
+                raise AccountingError(
+                    "Only an admin can add custom-priced lines. Select a product with an official price."
+                )
+            continue
+        official = product.price_for_tier(invoice.price_tier)
+        # Enforce the hard floor (admins may override an intentional low tier price).
+        floor = product.minimum_selling_price or ZERO
+        if floor > 0 and official < floor and not is_admin:
+            raise AccountingError(
+                f"{product.code}: price {official} is below the minimum selling price {floor}."
+            )
+        item.unit_price = official
+        item.tax_rate = product.tax_rate
+        item.save(update_fields=["unit_price", "tax_rate"])
+
+
 def _recompute_invoice_totals(invoice: SalesInvoice):
     subtotal = ZERO
     tax = ZERO
@@ -40,6 +74,7 @@ def post_invoice(invoice: SalesInvoice, user=None) -> SalesInvoice:
 
     if invoice.status == DocStatus.POSTED:
         raise AccountingError("Invoice is already posted.")
+    _apply_official_pricing(invoice, user=user)  # server-authoritative prices/tax
     _recompute_invoice_totals(invoice)
     if invoice.total <= 0:
         raise AccountingError("Invoice total must be positive.")
@@ -58,11 +93,19 @@ def post_invoice(invoice: SalesInvoice, user=None) -> SalesInvoice:
             cogs_total += inv.cogs_preview(product, item.quantity)
             stock_lines.append((product, item.quantity))
 
+    from .models import PaymentType
+    is_cash = invoice.payment_type == PaymentType.CASH
+
+    items_desc = ", ".join(f"{it.description} x{it.quantity:g}" for it in invoice.items.all())
     event = PostingEvent(
         date=invoice.date, source_type="SALES_INVOICE", source_id=invoice.id,
-        memo=f"Sales invoice {invoice.doc_no} - {invoice.customer.name}",
+        memo=f"Sales {invoice.doc_no} - {invoice.customer.name}" + (f" ({items_desc})" if items_desc else ""),
     )
-    event.debit("AR", invoice.total, memo=f"Invoice {invoice.doc_no}")
+    # Cash sale debits Cash (paid now); credit sale debits Accounts Receivable (owed).
+    if is_cash:
+        event.debit("CASH", invoice.total, memo=f"Cash sale {invoice.doc_no}")
+    else:
+        event.debit("AR", invoice.total, memo=f"Invoice {invoice.doc_no}")
     event.credit("SALES", invoice.subtotal, memo="Sales revenue")
     if invoice.tax_amount > 0:
         event.credit("VAT_PAYABLE", invoice.tax_amount, memo="Output VAT")
@@ -79,7 +122,9 @@ def post_invoice(invoice: SalesInvoice, user=None) -> SalesInvoice:
 
     invoice.journal_entry = entry
     invoice.status = DocStatus.POSTED
-    invoice.save(update_fields=["journal_entry", "status"])
+    if is_cash:
+        invoice.amount_paid = invoice.total  # cash sale is settled immediately
+    invoice.save(update_fields=["journal_entry", "status", "amount_paid"])
     return invoice
 
 
@@ -102,7 +147,30 @@ def post_payment(payment: CustomerPayment, user=None) -> CustomerPayment:
     payment.journal_entry = entry
     payment.status = DocStatus.POSTED
     payment.save(update_fields=["journal_entry", "status"])
+    _allocate_customer_payment(payment)
     return payment
+
+
+def _allocate_customer_payment(payment: CustomerPayment):
+    """Apply a receipt to the customer's open CREDIT invoices, oldest first (FIFO),
+    so each invoice shows Paid / Partially Paid correctly."""
+    from .models import PaymentType
+    remaining = payment.amount
+    invoices = (
+        SalesInvoice.objects
+        .filter(customer=payment.customer, status=DocStatus.POSTED, payment_type=PaymentType.CREDIT)
+        .order_by("date", "id")
+    )
+    for inv in invoices:
+        if remaining <= 0:
+            break
+        due = inv.total - inv.amount_paid
+        if due <= 0:
+            continue
+        applied = min(remaining, due)
+        inv.amount_paid += applied
+        inv.save(update_fields=["amount_paid"])
+        remaining -= applied
 
 
 @transaction.atomic

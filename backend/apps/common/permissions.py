@@ -30,3 +30,11 @@ class HasModelPermission(BasePermission):
 class ReadOnly(BasePermission):
     def has_permission(self, request, view):
         return request.method in SAFE_METHODS
+
+
+class CanViewFinancials(BasePermission):
+    """Financial statements / cost reports: Super Admin and Accountant only."""
+
+    def has_permission(self, request, view):
+        from apps.common.roles import can_view_cost
+        return bool(request.user and request.user.is_authenticated and can_view_cost(request.user))

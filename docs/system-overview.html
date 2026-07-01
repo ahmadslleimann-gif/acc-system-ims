@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kanijia Motorcycles System — System Documentation</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand2:#115e59; --ink:#0f172a; --muted:#64748b;
+    --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0; --ok:#16a34a; --warn:#d97706; --bad:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,Segoe UI,system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+  header{background:linear-gradient(135deg,#0f172a,#0b3b37);color:#fff;padding:48px 24px}
+  header .wrap{max-width:980px;margin:0 auto}
+  header h1{margin:0 0 6px;font-size:32px;letter-spacing:.5px}
+  header p{margin:0;color:#9fe7df}
+  .badge{display:inline-block;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+    padding:3px 10px;border-radius:999px;font-size:12px;margin-top:14px}
+  main{max-width:980px;margin:0 auto;padding:28px 24px 80px}
+  nav.toc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:24px 0}
+  nav.toc h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+  nav.toc a{display:inline-block;margin:4px 14px 4px 0;color:var(--brand);text-decoration:none;font-size:14px}
+  nav.toc a:hover{text-decoration:underline}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px;margin:18px 0;
+    box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  h2{margin:0 0 14px;font-size:22px;color:var(--brand2);display:flex;align-items:center;gap:10px}
+  h2 .n{background:var(--brand);color:#fff;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px}
+  h3{margin:18px 0 8px;font-size:16px}
+  p,li{font-size:15px}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:start;vertical-align:top}
+  th{background:#f1f5f9;font-weight:600}
+  code{background:#f1f5f9;padding:1px 6px;border-radius:6px;font-size:13px;font-family:ui-monospace,Consolas,monospace}
+  pre{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:10px;overflow:auto;font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .tile{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fbfdfd}
+  .tile h4{margin:0 0 4px;color:var(--brand2);font-size:15px}
+  .tile p{margin:0;color:var(--muted);font-size:13px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .yes{background:#dcfce7;color:#166534}.no{background:#fee2e2;color:#991b1b}.ro{background:#fef9c3;color:#854d0e}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px}
+  .flow .step{background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:8px 12px}
+  .flow .arr{color:var(--brand)}
+  .note{border-inline-start:4px solid var(--brand);background:#f0fdfa;padding:10px 14px;border-radius:8px;margin:12px 0}
+  footer{max-width:980px;margin:0 auto;padding:0 24px 48px;color:var(--muted);font-size:13px}
+  @media print{nav.toc{display:none}body{background:#fff}section{box-shadow:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>🏍️ Kanijia Motorcycles System</h1>
+    <p>Cloud accounting, inventory, sales &amp; purchasing — with enterprise role-based security.</p>
+    <span class="badge">Django REST + React/TypeScript · Bilingual (AR/EN) · Double-entry accounting</span>
+  </div>
+</header>
+
+<main>
+  <nav class="toc">
+    <h3>Contents</h3>
+    <a href="#overview">Overview</a>
+    <a href="#stack">Tech Stack</a>
+    <a href="#arch">Architecture</a>
+    <a href="#modules">Modules</a>
+    <a href="#roles">Roles &amp; Access</a>
+    <a href="#pricing">Pricing &amp; Security</a>
+    <a href="#inventory">Inventory Flow</a>
+    <a href="#accounting">Accounting Engine</a>
+    <a href="#reports">Reports</a>
+    <a href="#audit">Audit &amp; Integrity</a>
+    <a href="#run">Running Locally</a>
+    <a href="#api">API Reference</a>
+  </nav>
+
+  <section id="overview">
+    <h2><span class="n">1</span> Overview</h2>
+    <p>Kanijia Motorcycles System is a production-oriented ERP for a motorcycle trading business.
+      It manages <strong>products (inventory), customers, suppliers, sales, and purchases</strong>,
+      and automatically keeps a correct set of <strong>double-entry accounting books</strong> behind the scenes —
+      so the owner gets accurate financial reports without doing manual bookkeeping.</p>
+    <div class="grid">
+      <div class="tile"><h4>Items &amp; Stock</h4><p>Every product is a stock item with weighted-average cost and live quantity.</p></div>
+      <div class="tile"><h4>Buy → stock up</h4><p>Posting a purchase increases inventory &amp; supplier debt automatically.</p></div>
+      <div class="tile"><h4>Sell → stock down</h4><p>Posting a sale deducts stock, books COGS &amp; revenue, raises customer debt.</p></div>
+      <div class="tile"><h4>Admin-only pricing</h4><p>Only the Super Admin sets prices; staff sell at official prices.</p></div>
+      <div class="tile"><h4>Bilingual</h4><p>Full Arabic (RTL) and English (LTR) with a one-click toggle.</p></div>
+      <div class="tile"><h4>Audit trail</h4><p>Every change is logged with who/when/before/after.</p></div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <h2><span class="n">2</span> Technology Stack</h2>
+    <table>
+      <tr><th>Layer</th><th>Technology</th><th>Notes</th></tr>
+      <tr><td>Frontend</td><td>React + TypeScript + Vite + Tailwind CSS</td><td>Responsive, RTL/LTR, React Query for data</td></tr>
+      <tr><td>Backend</td><td>Django 5 + Django REST Framework</td><td>JWT auth (SimpleJWT), role-based permissions</td></tr>
+      <tr><td>Database</td><td>PostgreSQL (prod) / SQLite (local)</td><td>Money stored as <code>NUMERIC(19,4)</code> — never floats</td></tr>
+      <tr><td>Reports</td><td>openpyxl (Excel), reportlab (PDF)</td><td>Every report exports to PDF &amp; Excel with logo</td></tr>
+      <tr><td>Auth</td><td>JWT access + refresh, bcrypt hashing</td><td>Login rate-limited (10/min)</td></tr>
+    </table>
+  </section>
+
+  <section id="arch">
+    <h2><span class="n">3</span> Architecture</h2>
+    <p>The golden rule: <strong>no business module touches the ledger directly.</strong> Sales, purchases,
+      and inventory emit a balanced “posting event” to the <strong>Accounting Engine</strong>, which is the only
+      code allowed to write journal entries — atomically.</p>
+    <pre>React SPA (browser)
+     │  HTTPS + JWT
+     ▼
+Django REST API ── Guards: JWT → Role/Permission → Validation → Audit
+     │
+     ├─ Business modules: Sales · Purchases · Inventory · Customers · Suppliers · Expenses
+     │         │  emit balanced events
+     │         ▼
+     └─ ACCOUNTING ENGINE  (the only writer of the ledger)
+               • checks debits = credits
+               • checks period open + postable accounts
+               • writes JournalEntry + JournalLines in ONE transaction
+                         │
+                         ▼
+                  PostgreSQL  →  Reports &amp; Dashboard read from the ledger</pre>
+  </section>
+
+  <section id="modules">
+    <h2><span class="n">4</span> Modules</h2>
+    <table>
+      <tr><th>Module</th><th>What it does</th></tr>
+      <tr><td><strong>Dashboard</strong></td><td>KPIs: total sales, purchases, cash/bank, receivables, payables, recent activity.</td></tr>
+      <tr><td><strong>Inventory</strong></td><td>Products (items), three price tiers, stock movements, per-product supplier list, low-stock alerts.</td></tr>
+      <tr><td><strong>Sales</strong></td><td>Create &amp; post sales invoices (auto stock-out + COGS), customer payments, credit notes, quotations, A4 PDF.</td></tr>
+      <tr><td><strong>Purchases</strong></td><td>Purchase invoices (auto stock-in), supplier payments, debit notes.</td></tr>
+      <tr><td><strong>Customers</strong></td><td>Customer master + outstanding balance (computed from documents).</td></tr>
+      <tr><td><strong>Suppliers</strong></td><td>Supplier master + payable balance.</td></tr>
+      <tr><td><strong>Reports</strong></td><td>Trial balance, income statement, balance sheet, customer/supplier debts, inventory valuation.</td></tr>
+      <tr><td><strong>Admin area</strong></td><td>Chart of Accounts, Journal Entries, Daily Expenses, User Management, Audit logs.</td></tr>
+    </table>
+  </section>
+
+  <section id="roles">
+    <h2><span class="n">5</span> Roles &amp; Access Control</h2>
+    <p>Backend-enforced role-based access. Frontend hides what a role can’t use; the API rejects it regardless.</p>
+    <table>
+      <tr><th>Capability</th><th>Super Admin</th><th>Accountant</th><th>Sales Employee</th><th>Viewer</th></tr>
+      <tr><td>Set product prices</td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td></tr>
+      <tr><td>View cost / margin</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill no">Hidden</span></td><td><span class="pill no">Hidden</span></td></tr>
+      <tr><td>Create &amp; post sales</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td></tr>
+      <tr><td>Post journal / accounting</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td></tr>
+      <tr><td>View journal entries</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td></tr>
+      <tr><td>Financial reports</td><td><span class="pill yes">Yes</span></td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td></tr>
+      <tr><td>Manage users</td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td></tr>
+      <tr><td>View audit log</td><td><span class="pill yes">Yes</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td><td><span class="pill no">No</span></td></tr>
+      <tr><td>General data</td><td>Full</td><td>Manage</td><td>Sell only</td><td><span class="pill ro">Read-only</span></td></tr>
+    </table>
+  </section>
+
+  <section id="pricing">
+    <h2><span class="n">6</span> Pricing &amp; Financial Security</h2>
+    <h3>Three price tiers (Super Admin only)</h3>
+    <ul>
+      <li><strong>Retail</strong> (مفرّق) · <strong>Wholesale</strong> (جملة) · <strong>Bulk</strong> (جملة الجملة)</li>
+      <li>Plus <strong>cost price</strong>, <strong>minimum selling price</strong>, and <strong>max discount %</strong> — all admin-only.</li>
+    </ul>
+    <h3>The server is the source of truth</h3>
+    <div class="note">When a sale is posted, the backend <strong>ignores any price sent by the client</strong> and loads
+      the official tier price and tax from the product. A tampered request like
+      <code>{ product:1, quantity:5, unit_price:1 }</code> is overridden to the real price.</div>
+    <ul>
+      <li>Sales staff cannot edit, override, or invent prices (custom-priced lines are admin-only).</li>
+      <li>Selling below the minimum price is rejected (Super Admin may override).</li>
+      <li>Cost prices and margins are stripped from API responses for non-cost roles.</li>
+    </ul>
+    <h3>Document locking</h3>
+    <ul>
+      <li>Posted invoices, payments and journal entries are <strong>immutable</strong> — no edits.</li>
+      <li>Financial records are <strong>never deleted</strong>: states are Draft → Posted → Cancelled.</li>
+      <li>Cancelling a posted invoice <strong>reverses the journal entry and restores stock</strong> — fully auditable.</li>
+    </ul>
+  </section>
+
+  <section id="inventory">
+    <h2><span class="n">7</span> Inventory Flow</h2>
+    <div class="flow">
+      <span class="step">Buy 10 @ 80</span><span class="arr">→</span>
+      <span class="step">Stock = 10, avg cost 80</span><span class="arr">→</span>
+      <span class="step">Sell 3 @ 120</span><span class="arr">→</span>
+      <span class="step">Stock = 7 (auto −3)</span><span class="arr">→</span>
+      <span class="step">COGS 240, Revenue 360</span>
+    </div>
+    <ul>
+      <li>Valuation method: <strong>weighted-average cost</strong>, recomputed on every receipt.</li>
+      <li>Quantities change <strong>only</strong> through purchases, sales, returns, or admin adjustments — each writes a stock-movement record (full stock ledger).</li>
+      <li>Overselling is blocked (can’t sell more than on-hand).</li>
+      <li>Each product tracks which suppliers sell it, with each supplier’s cost (printable).</li>
+    </ul>
+  </section>
+
+  <section id="accounting">
+    <h2><span class="n">8</span> Accounting Engine (Double-Entry)</h2>
+    <p>Every transaction produces a balanced journal entry. Examples:</p>
+    <table>
+      <tr><th>Event</th><th>Debit</th><th>Credit</th></tr>
+      <tr><td>Sales invoice</td><td>Accounts Receivable</td><td>Sales Revenue + VAT Payable</td></tr>
+      <tr><td>+ stock sold</td><td>Cost of Goods Sold</td><td>Inventory</td></tr>
+      <tr><td>Customer payment</td><td>Cash / Bank</td><td>Accounts Receivable</td></tr>
+      <tr><td>Purchase invoice</td><td>Inventory + VAT Receivable</td><td>Accounts Payable</td></tr>
+      <tr><td>Supplier payment</td><td>Accounts Payable</td><td>Cash / Bank</td></tr>
+    </table>
+    <div class="note">The engine rejects any unbalanced entry, any posting into a closed period, and any
+      posting to a non-postable account — and writes everything in a single atomic transaction.</div>
+  </section>
+
+  <section id="reports">
+    <h2><span class="n">9</span> Reports</h2>
+    <p>All reports are derived live from the ledger and stock records — never from manually-kept balances.
+      Each exports to <strong>PDF</strong> and <strong>Excel</strong> with the company logo.</p>
+    <div class="grid">
+      <div class="tile"><h4>Trial Balance</h4><p>All accounts; debits must equal credits.</p></div>
+      <div class="tile"><h4>Income Statement</h4><p>Revenue − expenses = net profit/loss.</p></div>
+      <div class="tile"><h4>Balance Sheet</h4><p>Assets = liabilities + equity.</p></div>
+      <div class="tile"><h4>Customer Debts</h4><p>Who owes you and how much.</p></div>
+      <div class="tile"><h4>Supplier Debts</h4><p>Who you owe and how much.</p></div>
+      <div class="tile"><h4>Inventory Valuation</h4><p>Stock quantity × average cost.</p></div>
+    </div>
+  </section>
+
+  <section id="audit">
+    <h2><span class="n">10</span> Audit &amp; Integrity</h2>
+    <ul>
+      <li><strong>Audit log</strong> records user, action, entity, before/after values, IP, and timestamp — append-only, admin-view only.</li>
+      <li>Customer &amp; supplier balances are always computed from invoices/payments/notes — never editable directly.</li>
+      <li>Cash/bank balances are derived from ledger entries.</li>
+      <li>Money uses fixed-point decimals (no floating-point rounding errors).</li>
+    </ul>
+  </section>
+
+  <section id="run">
+    <h2><span class="n">11</span> Running Locally</h2>
+    <h3>Backend</h3>
+    <pre>cd backend
+.venv\Scripts\activate
+python manage.py migrate
+python manage.py seed_coa
+python manage.py seed_roles
+python manage.py runserver        # http://127.0.0.1:8000</pre>
+    <h3>Frontend</h3>
+    <pre>cd frontend
+npm install
+npm run dev                        # http://localhost:5173</pre>
+    <h3>Reset all data to zero (keeps users, accounts, settings)</h3>
+    <pre>python manage.py reset_data --yes</pre>
+    <div class="note">Default admin login: <code>admin</code> / <code>Admin12345</code> — change it after first sign-in.
+      The Django admin panel is at <code>http://127.0.0.1:8000/admin/</code>.</div>
+  </section>
+
+  <section id="api">
+    <h2><span class="n">12</span> API Reference (summary)</h2>
+    <p>Base URL: <code>/api</code>. All endpoints require a JWT <code>Authorization: Bearer &lt;token&gt;</code> except login.</p>
+    <table>
+      <tr><th>Area</th><th>Endpoint</th></tr>
+      <tr><td>Auth</td><td><code>POST /api/auth/login/</code>, <code>POST /api/auth/refresh/</code>, <code>GET /api/auth/me/</code></td></tr>
+      <tr><td>Products</td><td><code>/api/inventory/products/</code>, <code>/products/{id}/suppliers/</code>, <code>/movements/</code></td></tr>
+      <tr><td>Sales</td><td><code>/api/sales/invoices/</code> + <code>/post_invoice/</code>, <code>/cancel/</code>, <code>/pdf/</code></td></tr>
+      <tr><td>Purchases</td><td><code>/api/purchases/invoices/</code> + <code>/post_invoice/</code>, <code>/cancel/</code></td></tr>
+      <tr><td>Customers / Suppliers</td><td><code>/api/customers/</code>, <code>/api/suppliers/</code> (+ <code>/ledger/</code>)</td></tr>
+      <tr><td>Reports</td><td><code>/api/reports/&lt;name&gt;/</code>, export: <code>/api/reports/&lt;name&gt;/export/?fmt=pdf|excel</code></td></tr>
+      <tr><td>Interactive docs</td><td><code>GET /api/docs/</code> (Swagger UI)</td></tr>
+    </table>
+  </section>
+</main>
+
+<footer>
+  Kanijia Motorcycles System — generated documentation. Open this file in any browser; use your browser’s “Print → Save as PDF” for a PDF copy.
+</footer>
+</body>
+</html>

@@ -11,7 +11,14 @@ from .serializers import (
 from . import services
 
 
-class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
+class _DraftDeleteMixin:
+    def destroy(self, request, *args, **kwargs):
+        if getattr(self.get_object(), "status", "DRAFT") != "DRAFT":
+            return Response({"detail": "Posted documents cannot be deleted. Use cancel."}, status=400)
+        return super().destroy(request, *args, **kwargs)
+
+
+class PurchaseInvoiceViewSet(_DraftDeleteMixin, viewsets.ModelViewSet):
     queryset = PurchaseInvoice.objects.prefetch_related("items").select_related("supplier").all()
     serializer_class = PurchaseInvoiceSerializer
     permission_classes = [IsAuthenticated, HasModelPermission]
@@ -29,26 +36,49 @@ class PurchaseInvoiceViewSet(viewsets.ModelViewSet):
         invoice = services.post_invoice(self.get_object(), user=request.user)
         return Response(self.get_serializer(invoice).data)
 
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        from apps.accounting_engine.workflow import cancel_invoice_with_stock
+        invoice = cancel_invoice_with_stock(self.get_object(), user=request.user, restore_direction="OUT")
+        return Response(self.get_serializer(invoice).data)
 
-class SupplierPaymentViewSet(viewsets.ModelViewSet):
+
+class SupplierPaymentViewSet(_DraftDeleteMixin, viewsets.ModelViewSet):
     queryset = SupplierPayment.objects.select_related("supplier").all()
     serializer_class = SupplierPaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasModelPermission]
     filterset_fields = ["supplier", "status"]
     search_fields = ["doc_no"]
+    required_perms = {
+        "POST": ["purchases.add_supplierpayment"],
+        "PUT": ["purchases.change_supplierpayment"],
+        "PATCH": ["purchases.change_supplierpayment"],
+        "DELETE": ["purchases.delete_supplierpayment"],
+    }
 
     @action(detail=True, methods=["post"])
     def post_payment(self, request, pk=None):
         payment = services.post_payment(self.get_object(), user=request.user)
         return Response(self.get_serializer(payment).data)
 
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        from apps.accounting_engine.workflow import reverse_only_cancel
+        return Response(self.get_serializer(reverse_only_cancel(self.get_object(), user=request.user)).data)
 
-class DebitNoteViewSet(viewsets.ModelViewSet):
+
+class DebitNoteViewSet(_DraftDeleteMixin, viewsets.ModelViewSet):
     queryset = DebitNote.objects.select_related("supplier").all()
     serializer_class = DebitNoteSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasModelPermission]
     filterset_fields = ["supplier", "status"]
     search_fields = ["doc_no"]
+    required_perms = {
+        "POST": ["purchases.add_debitnote"],
+        "PUT": ["purchases.change_debitnote"],
+        "PATCH": ["purchases.change_debitnote"],
+        "DELETE": ["purchases.delete_debitnote"],
+    }
 
     @action(detail=True, methods=["post"])
     def post_note(self, request, pk=None):

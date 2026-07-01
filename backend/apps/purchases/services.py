@@ -55,9 +55,10 @@ def post_invoice(invoice: PurchaseInvoice, user=None) -> PurchaseInvoice:
             expense_total += item.line_subtotal
 
     expense_acct = invoice.expense_account or "PURCHASES"
+    items_desc = ", ".join(f"{it.description} x{it.quantity:g}" for it in invoice.items.all())
     event = PostingEvent(
         date=invoice.date, source_type="PURCHASE_INVOICE", source_id=invoice.id,
-        memo=f"Purchase invoice {invoice.doc_no} - {invoice.supplier.name}",
+        memo=f"Purchase {invoice.doc_no} - {invoice.supplier.name}" + (f" ({items_desc})" if items_desc else ""),
     )
     if inventory_total > 0:
         event.debit("1150", inventory_total, memo="Inventory purchased")
@@ -65,18 +66,32 @@ def post_invoice(invoice: PurchaseInvoice, user=None) -> PurchaseInvoice:
         event.debit(expense_acct, expense_total, memo="Purchase / expense")
     if invoice.tax_amount > 0:
         event.debit("VAT_RECEIVABLE", invoice.tax_amount, memo="Input VAT")
-    event.credit("AP", invoice.total, memo=f"Payable {invoice.supplier.name}")
+    # Cash purchase credits Cash (paid now); credit purchase credits Accounts Payable.
+    from .models import PaymentType
+    is_cash = invoice.payment_type == PaymentType.CASH
+    if is_cash:
+        event.credit("CASH", invoice.total, memo=f"Cash purchase {invoice.doc_no}")
+    else:
+        event.credit("AP", invoice.total, memo=f"Payable {invoice.supplier.name}")
 
     entry = PostingService.post(event, user=user)
 
     # Auto-increase inventory (records movements linked to this entry).
+    from apps.inventory.models import ProductSupplier
     for product, qty, unit_cost in receipts:
         inv.apply_receipt(product, qty, unit_cost, date=invoice.date, reason="PURCHASE",
                           reference=invoice.doc_no, journal_entry=entry, user=user)
+        # Track this supplier as a source for the product, with its latest price.
+        ProductSupplier.objects.update_or_create(
+            product=product, supplier=invoice.supplier,
+            defaults={"last_purchase_price": unit_cost, "cost": unit_cost},
+        )
 
     invoice.journal_entry = entry
     invoice.status = DocStatus.POSTED
-    invoice.save(update_fields=["journal_entry", "status"])
+    if is_cash:
+        invoice.amount_paid = invoice.total
+    invoice.save(update_fields=["journal_entry", "status", "amount_paid"])
     return invoice
 
 
@@ -99,7 +114,29 @@ def post_payment(payment: SupplierPayment, user=None) -> SupplierPayment:
     payment.journal_entry = entry
     payment.status = DocStatus.POSTED
     payment.save(update_fields=["journal_entry", "status"])
+    _allocate_supplier_payment(payment)
     return payment
+
+
+def _allocate_supplier_payment(payment: SupplierPayment):
+    """Apply a supplier payment to open CREDIT purchase invoices, oldest first."""
+    from .models import PaymentType
+    remaining = payment.amount
+    invoices = (
+        PurchaseInvoice.objects
+        .filter(supplier=payment.supplier, status=DocStatus.POSTED, payment_type=PaymentType.CREDIT)
+        .order_by("date", "id")
+    )
+    for inv in invoices:
+        if remaining <= 0:
+            break
+        due = inv.total - inv.amount_paid
+        if due <= 0:
+            continue
+        applied = min(remaining, due)
+        inv.amount_paid += applied
+        inv.save(update_fields=["amount_paid"])
+        remaining -= applied
 
 
 @transaction.atomic

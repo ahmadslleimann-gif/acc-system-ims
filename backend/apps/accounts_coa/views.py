@@ -1,7 +1,7 @@
 from django.db.models import Sum
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from apps.common.permissions import HasModelPermission
@@ -17,6 +17,7 @@ class AccountViewSet(viewsets.ModelViewSet):
     filterset_fields = ["type", "is_active", "is_postable", "parent"]
     search_fields = ["code", "name_en", "name_ar"]
     required_perms = {
+        "GET": ["accounts_coa.view_account"],
         "POST": ["accounts_coa.add_account"],
         "PUT": ["accounts_coa.change_account"],
         "PATCH": ["accounts_coa.change_account"],
@@ -55,6 +56,7 @@ class AccountViewSet(viewsets.ModelViewSet):
 
 
 class SystemAccountViewSet(viewsets.ModelViewSet):
+    # Maps engine keys to GL accounts — admin-only (changing these alters posting).
     queryset = SystemAccount.objects.select_related("account")
     serializer_class = SystemAccountSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]

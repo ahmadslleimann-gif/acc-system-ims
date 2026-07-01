@@ -25,5 +25,6 @@ urlpatterns = [
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve uploaded media (e.g. company logo) in all environments; static is handled
+# by WhiteNoise. nginx proxies /media/ and /static/ to this backend.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

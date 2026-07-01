@@ -11,14 +11,16 @@ const NAV = [
   { to: "/", key: "dashboard", icon: "📊" },
   { to: "/inventory", key: "inventory", icon: "📦", perm: "inventory.view_product" },
   { to: "/sales", key: "sales", icon: "🧾", perm: "sales.view_salesinvoice" },
+  { to: "/customer-payments", key: "customerReceipt", icon: "🧾", perm: "sales.view_customerpayment" },
   { to: "/purchases", key: "purchases", icon: "🛒", perm: "purchases.view_purchaseinvoice" },
+  { to: "/supplier-payments", key: "supplierPayment", icon: "💵", perm: "purchases.view_supplierpayment" },
   { to: "/customers", key: "customers", icon: "👤", perm: "customers.view_customer" },
   { to: "/suppliers", key: "suppliers", icon: "🏭", perm: "suppliers.view_supplier" },
-  { to: "/reports", key: "reports", icon: "📈" },
+  { to: "/reports", key: "reports", icon: "📈", perm: "journal.view_journalentry" },
   // --- admin only (full control) ---
   { to: "/chart-of-accounts", key: "chartOfAccounts", icon: "📒", admin: true, section: true },
   { to: "/journal", key: "journal", icon: "✍️", admin: true },
-  { to: "/cash-banks", key: "cashBanks", icon: "🏦", admin: true },
+  { to: "/expenses", key: "expenses", icon: "💸", admin: true },
   { to: "/users", key: "users", icon: "🛡️", admin: true },
 ];
 

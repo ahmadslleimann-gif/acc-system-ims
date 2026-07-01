@@ -40,11 +40,25 @@ class QuotationItem(models.Model):
     line_total = money_field()
 
 
+class PriceTier(models.TextChoices):
+    RETAIL = "RETAIL", "Retail"
+    WHOLESALE = "WHOLESALE", "Wholesale"
+    BULK = "BULK", "Bulk"
+
+
+class PaymentType(models.TextChoices):
+    CASH = "CASH", "Cash"
+    CREDIT = "CREDIT", "Credit"
+
+
 class SalesInvoice(TimeStampedModel):
     doc_no = models.CharField(max_length=30, unique=True)
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="invoices")
     date = models.DateField()
     due_date = models.DateField(null=True, blank=True)
+    price_tier = models.CharField(max_length=10, choices=PriceTier.choices, default=PriceTier.RETAIL)
+    payment_type = models.CharField(max_length=6, choices=PaymentType.choices, default=PaymentType.CASH)
+    amount_paid = money_field()  # how much has been collected against this invoice
     status = models.CharField(max_length=12, choices=DocStatus.choices, default=DocStatus.DRAFT)
     subtotal = money_field()
     tax_amount = money_field()
@@ -56,6 +70,18 @@ class SalesInvoice(TimeStampedModel):
 
     class Meta:
         ordering = ["-date", "-id"]
+
+    @property
+    def outstanding(self):
+        return max(self.total - self.amount_paid, 0) if self.status == DocStatus.POSTED else 0
+
+    @property
+    def payment_status(self):
+        if self.status != DocStatus.POSTED:
+            return self.status  # DRAFT / CANCELLED
+        if self.amount_paid >= self.total:
+            return "PAID"
+        return "PARTIAL" if self.amount_paid > 0 else "UNPAID"
 
     def __str__(self):
         return self.doc_no

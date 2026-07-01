@@ -16,12 +16,16 @@ class PurchaseInvoiceSerializer(serializers.ModelSerializer):
     items = PurchaseInvoiceItemSerializer(many=True)
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
 
+    payment_status = serializers.CharField(read_only=True)
+    outstanding = serializers.DecimalField(max_digits=19, decimal_places=4, read_only=True)
+
     class Meta:
         model = PurchaseInvoice
         fields = ["id", "doc_no", "supplier", "supplier_name", "supplier_ref", "date",
-                  "due_date", "status", "subtotal", "tax_amount", "total",
+                  "due_date", "payment_type", "amount_paid", "payment_status", "outstanding",
+                  "status", "subtotal", "tax_amount", "total",
                   "expense_account", "notes", "journal_entry", "items"]
-        read_only_fields = ["doc_no", "status", "subtotal", "tax_amount", "total", "journal_entry"]
+        read_only_fields = ["doc_no", "status", "subtotal", "tax_amount", "total", "amount_paid", "journal_entry"]
 
     def create(self, validated_data):
         from apps.accounting_engine.numbering import next_document_no
@@ -52,6 +56,10 @@ class PurchaseInvoiceSerializer(serializers.ModelSerializer):
 
 class SupplierPaymentSerializer(serializers.ModelSerializer):
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    paid_from_account = serializers.PrimaryKeyRelatedField(
+        queryset=__import__("apps.accounts_coa.models", fromlist=["Account"]).Account.objects.all(),
+        required=False, allow_null=True,
+    )
 
     class Meta:
         model = SupplierPayment
@@ -61,6 +69,9 @@ class SupplierPaymentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         from apps.accounting_engine.numbering import next_document_no
+        from apps.accounts_coa.models import SystemAccount
+        if not validated_data.get("paid_from_account"):
+            validated_data["paid_from_account"] = SystemAccount.objects.get(key="CASH").account
         return SupplierPayment.objects.create(
             doc_no=next_document_no(SupplierPayment, "PAY"),
             created_by=self.context["request"].user, **validated_data,

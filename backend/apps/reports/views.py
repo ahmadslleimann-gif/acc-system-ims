@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.common.permissions import CanViewFinancials
 from . import statements
 from .excel import table_excel_response
 from .pdf import table_pdf_response
@@ -12,28 +12,28 @@ def _range(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([CanViewFinancials])
 def trial_balance(request):
     d_from, d_to = _range(request)
     return Response(statements.trial_balance(d_from, d_to))
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([CanViewFinancials])
 def income_statement(request):
     d_from, d_to = _range(request)
     return Response(statements.income_statement(d_from, d_to))
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([CanViewFinancials])
 def balance_sheet(request):
     _, d_to = _range(request)
     return Response(statements.balance_sheet(d_to))
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([CanViewFinancials])
 def general_ledger(request):
     d_from, d_to = _range(request)
     account_id = request.query_params.get("account")
@@ -41,10 +41,24 @@ def general_ledger(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([CanViewFinancials])
 def cash_flow(request):
     d_from, d_to = _range(request)
     return Response(statements.cash_flow(d_from, d_to))
+
+
+@api_view(["GET"])
+@permission_classes([CanViewFinancials])
+def customer_debts(request):
+    from .ledgers import partner_debts
+    return Response(partner_debts("customer"))
+
+
+@api_view(["GET"])
+@permission_classes([CanViewFinancials])
+def supplier_debts(request):
+    from .ledgers import partner_debts
+    return Response(partner_debts("supplier"))
 
 
 def _build_export(report, d_from, d_to, request):
@@ -106,22 +120,14 @@ def _build_export(report, d_from, d_to, request):
         return "General Ledger", headers, rows, "general_ledger"
 
     if report in ("customer-debts", "supplier-debts"):
-        from apps.reports.ledgers import partner_balance
-        if report == "customer-debts":
-            from apps.customers.models import Customer
-            partners, kind, who, title = Customer.objects.order_by("code"), "customer", "Customer", "Customer Debts"
-        else:
-            from apps.suppliers.models import Supplier
-            partners, kind, who, title = Supplier.objects.order_by("code"), "supplier", "Supplier", "Supplier Debts"
-        headers = ["Code", who, "Balance"]
-        rows = []
-        total = ZERO
-        for p in partners:
-            bal = partner_balance(kind, p.id)
-            if bal:
-                rows.append([p.code, p.name, str(bal)])
-                total += Decimal(str(bal))
-        rows.append(["", "TOTAL", str(total)])
+        from apps.reports.ledgers import partner_debts
+        kind = "customer" if report == "customer-debts" else "supplier"
+        who = "Customer" if kind == "customer" else "Supplier"
+        title = "Customer Debts" if kind == "customer" else "Supplier Debts"
+        data = partner_debts(kind)
+        headers = ["Code", who, "Invoices", "Payments", "Balance"]
+        rows = [[r["code"], r["name"], r["invoices"], r["payments"], r["balance"]] for r in data["rows"]]
+        rows.append(["", "TOTAL", data["total_invoices"], data["total_payments"], data["total_balance"]])
         return title, headers, rows, report.replace("-", "_")
 
     if report == "inventory-valuation":
@@ -139,7 +145,7 @@ def _build_export(report, d_from, d_to, request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([CanViewFinancials])
 def report_export(request, report):
     d_from, d_to = _range(request)
     built = _build_export(report, d_from, d_to, request)
