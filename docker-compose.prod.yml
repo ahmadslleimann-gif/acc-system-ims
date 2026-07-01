@@ -50,7 +50,9 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "80:80"
+      # Host port is configurable so this app can coexist with your other projects.
+      # Set APP_PORT in .env (default 8080). Access at http://YOUR_IP:APP_PORT
+      - "${APP_PORT:-8080}:80"
     depends_on:
       - backend
     restart: unless-stopped
